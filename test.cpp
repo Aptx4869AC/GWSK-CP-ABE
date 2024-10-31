@@ -1,0 +1,205 @@
+#include <iostream>
+#include <omp.h>
+#include <time.h>
+#include <random>
+#include "include/ABE/ABE2OD.h"
+#include "include/pbc/pbc_test.h"
+#include "include/PicoSHA2/picosha2.h"
+
+using namespace std;
+using namespace ABE2ODSPACE;
+
+string generateBinaryHash(size_t bitLength)
+{
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<int> dist(0, 1);
+
+    string hash;
+    do
+    {
+        // 生成二进制哈希字符串
+        hash.clear();
+        for (size_t i = 0; i < bitLength - 1; i++) // 减去1，因为最高位需要填充1
+        {
+            int bit = dist(gen);
+            hash += std::to_string(bit);
+        }
+        hash = "1" + hash; // 最高位填充1
+    } while (hash.back() == '0'); // 检查最低位是否为1
+    return hash;
+}
+
+
+string generateString(int length)
+{
+    stringstream ss;
+    ss << "(";
+    for (int i = 1; i <= length; ++i)
+    {
+        ss << "A" << i;
+        if (i < length)
+        {
+            ss << ",";
+        }
+    }
+    ss << ")";
+    return ss.str();
+}
+
+
+int main(int argc, char *argv[])
+{
+    int cpu_number = 1;
+    omp_set_num_threads(cpu_number);
+
+    int epoch = 1;
+    double start_time_setup, end_time_setup;
+    double start_time_enc, end_time_enc;
+    double start_time_keygen, end_time_keygen;
+    double start_time_t1, end_time_t1;
+    double start_time_t2, end_time_t2;
+    double start_time_dec, end_time_dec;
+
+    double elapsed_time_setup = 0, elapsed_time_enc = 0, elapsed_time_keygen = 0, elapsed_time_dec = 0;
+    double elapsed_time_t1 = 0, elapsed_time_t2 = 0;
+    for (int i = 0; i < epoch; i++)
+    {
+
+//        const char *param = "type a\n"
+//                            "q 13443769915192326887\n"
+//                            "h 24133562481384\n"
+//                            "r 557057\n"
+//                            "exp2 19\n"
+//                            "exp1 15\n"
+//                            "sign1 1\n"
+//                            "sign0 1";
+////        const char *param =
+////                "type a\n"
+////                "q 8780710799663312522437781984754049815806883199414208211028653399266475630880222957078625179422662221423155858769582317459277713367317481324925129998224791\n"
+////                "h 12016012264891146079388821366740534204802954401251311822919615131047207289359704531102844802183906537786776\n"
+////                "r 730750818665451621361119245571504901405976559617\n"
+////                "exp2 159\n"
+////                "exp1 107\n"
+////                "sign1 1\n"
+////                "sign0 1";
+//
+//
+//        // 初始化pbc_param_t
+//        pbc_param_t par;
+//        pbc_param_init_set_str(par, param);
+//        // 初始化pairing_t
+//        pairing_t pairing;
+//        pairing_init_pbc_param(pairing, par);
+
+
+//        // 初始化pbc_param_t结构体
+//        pbc_param_t param;
+//
+//        // 生成一个类型为A的椭圆曲线参数，给定一个80位的安全等级和一个256位的素数q
+//        pbc_param_init_a_gen(param, 20, 64);
+//
+//        // 输出生成的参数（可选）
+//        pbc_param_out_str(stdout, param);
+//        // 初始化pairing_t结构体
+//        pairing_t pairing;
+//        pairing_init_pbc_param(pairing, param);
+
+        pbc_param_t param;
+        pbc_param_init_a_gen(param, 160, 512);
+        pairing_t pairing;
+        pairing_init_pbc_param(pairing, param);
+
+        // Setup 初始化
+        ABE2OD abe2od;
+        start_time_setup = omp_get_wtime();
+        abe2od.Setup(pairing);
+        end_time_setup = omp_get_wtime();
+        abe2od.showkeys();
+        printf("-------------------------------------------------------------------------\n");
+
+
+        // Enc
+        // 生成LSSS矩阵
+        string access_policy = "((A,B,2),(C,D,E,3),(F,(G,H,2),1),2)";
+        cout << "access_policy = " << access_policy << '\n';
+        LSSS lsss(access_policy);
+
+        // 生成消息M
+        // string message="aptx4869";
+        const size_t desiredBitLength = 256; // 所需的位数
+//        string message = generateBinaryHash(desiredBitLength); // 随机生成消息
+        string message = "1011101001010101001011000011100010110111000010101010100001101010100101011111001011111110000000110011001011000000100001000110110011111110000010110101110000101001011001001110010010100011100100010010110111100100011000011001100111110001011000101000010101100001";
+        cout << "message = " << message << '\n';
+
+
+        Ciphertext cipher;
+        start_time_enc = omp_get_wtime();
+        abe2od.Enc(cipher, message, lsss, pairing);
+        end_time_enc = omp_get_wtime();
+        abe2od.showcipher(cipher);
+        printf("-------------------------------------------------------------------------\n");
+
+        // KeyGen
+        string attribute_str = "(A,B,C,D,F)";
+        cout << "attribute_str = " << attribute_str << '\n';
+        KeyTuple keytuple;
+
+        start_time_keygen = omp_get_wtime();
+        abe2od.KeyGen(keytuple, attribute_str, pairing);
+        end_time_keygen = omp_get_wtime();
+        abe2od.showkeytuple(keytuple);
+        printf("-------------------------------------------------------------------------\n");
+
+        //Transform1
+        PTC ptc;
+        TC tc;
+        start_time_t1 = omp_get_wtime();
+        abe2od.Transform1(ptc, keytuple.tk_1, keytuple.tk_2, cipher, pairing);
+        end_time_t1 = omp_get_wtime();
+        abe2od.showPTC(ptc);
+        printf("-------------------------------------------------------------------------\n");
+
+
+        // Transform2
+        start_time_t2 = omp_get_wtime();
+        abe2od.Transform2(tc, keytuple.hk, ptc, pairing);
+        end_time_t2 = omp_get_wtime();
+        abe2od.showTC(tc);
+        printf("-------------------------------------------------------------------------\n");
+
+        // Decrypt
+        string M1;
+        start_time_dec = omp_get_wtime();
+        M1 = abe2od.Dec(keytuple.dk, tc, pairing);
+        end_time_dec = omp_get_wtime();
+        cout << "M1 = " << M1 << '\n';
+
+        // 判断M和M1是否一致
+        if (M1 != message)
+        {
+            cout << "Before encryption: M = " << message << '\n';
+            cout << "After encryption: M1 = " << M1 << '\n';
+            cout << "错误：M与M1不一致" << '\n';
+            return -1;  // 返回非零值表示出错
+        }
+
+        elapsed_time_setup += (end_time_setup - start_time_setup) * 1000;
+        elapsed_time_enc += (end_time_enc - start_time_enc) * 1000;
+        elapsed_time_keygen += (end_time_keygen - start_time_keygen) * 1000;
+        elapsed_time_t1 += (end_time_t1 - start_time_t1) * 1000;
+        elapsed_time_t2 += (end_time_t2 - start_time_t2) * 1000;
+        elapsed_time_dec += (end_time_dec - start_time_dec) * 1000;
+//        printf("-------------------------------------------------------------------------\n");
+    }
+
+    printf("[KGC，步骤一] %d次 Setup平均耗时 %.10f ms\n", epoch, elapsed_time_setup / epoch);
+    printf("[KGC，步骤二] %d次 Keygen平均耗时 %.10f ms\n", epoch, elapsed_time_keygen / epoch);
+    printf("[投标人，步骤三] %d次 Enc平均耗时 %.10f ms\n", epoch, elapsed_time_enc / epoch);
+    printf("[区块链，步骤四] %d次 PDec平均耗时 %.10f ms\n", epoch, elapsed_time_t1 / epoch);
+    printf("[招标人，步骤五] %d次 TDec平均耗时 %.10f ms\n", epoch, elapsed_time_dec / epoch);
+
+    printf("Info: exp successfully returned.\n");
+    return 0;
+}
+
