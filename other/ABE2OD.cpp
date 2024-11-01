@@ -2,32 +2,6 @@
 
 using namespace ABE2ODSPACE;
 
-string elementToHash(element_t &element)
-{
-    // 获取元素R的字节表示
-    size_t byteLength = element_length_in_bytes(element);
-    unsigned char *bytes = new unsigned char[byteLength];
-    element_to_bytes(bytes, element);
-
-    // 使用SHA-256进行哈希计算
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256(bytes, byteLength, hash);
-
-    // 将哈希值转换为01字符串
-    std::string hashString;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-    {
-        for (int j = 7; j >= 0; j--)
-        {
-            hashString += ((hash[i] >> j) & 1) ? '1' : '0';
-        }
-    }
-
-    delete[] bytes;
-
-    return hashString;
-}
-
 /**
  *
  * @param pairing
@@ -42,8 +16,7 @@ void ABE2OD::Setup(pairing_t pairing)
     // random
     element_t alpha;
     element_init_Zr(alpha, pairing);
-//    element_random(alpha);
-    element_set_si(alpha, 2);
+    element_random(alpha);
 
     // public key
     element_random(pk.g_1);
@@ -78,10 +51,8 @@ void ABE2OD::KeyGen(KeyTuple &keytuple, const string _attributes, pairing_t _pai
     element_t r, beta;
     element_init_Zr(r, _pairing);
     element_init_Zr(beta, _pairing);
-//    element_random(r);
-//    element_random(beta);
-    element_set_si(r, 1);
-    element_set_si(beta, 1);
+    element_random(r);
+    element_random(beta);
 
     // decryption key
     element_set(keytuple.sk.beta, beta);
@@ -123,7 +94,7 @@ void ABE2OD::KeyGen(KeyTuple &keytuple, const string _attributes, pairing_t _pai
 }
 
 
-void ABE2OD::Enc(Ciphertext &cipher, string M, LSSS &lsss, pairing_t _pairing)
+void ABE2OD::Enc(Ciphertext &cipher, element_t M, LSSS &lsss, pairing_t _pairing)
 {
 
     int lsss_row = lsss.M.size();
@@ -135,20 +106,16 @@ void ABE2OD::Enc(Ciphertext &cipher, string M, LSSS &lsss, pairing_t _pairing)
     // 转椭圆曲线上的点
     element_t msg;
     element_init_GT(msg, _pairing);
-    element_from_hash(msg, (void *) M.c_str(), M.length());
-    element_printf("msg = %B\n", msg);
+    element_set(msg, M);
+//    element_printf("msg = %B\n", msg);
 
     // El Gamal layer
     // ct_3
     element_s s;
     element_init_Zr(&s, _pairing);
-//    element_random(&s);
-    element_set_si(&s, 1);
-    element_printf("s = %B\n", &s);
+    element_random(&s);
     element_pow_zn(cipher.ct_3, pk.eggalpha, &s);
-    element_printf("pk.e_g_g_alphas = %B\n", cipher.ct_3);
     element_mul(cipher.ct_3, cipher.ct_3, msg);
-    element_printf("msg * pk.e_g_g_alphas = %B\n", cipher.ct_3);
 
     // C2
     element_pow_zn(cipher.ct_2, pk.g_1, &s);
@@ -161,8 +128,7 @@ void ABE2OD::Enc(Ciphertext &cipher, string M, LSSS &lsss, pairing_t _pairing)
     {
         element_s temp_y;
         element_init_Zr(&temp_y, _pairing);
-//        element_random(&temp_y);
-        element_set_si(&temp_y, (i + 1) * 2);
+        element_random(&temp_y);
         v.push_back(temp_y);
     }
     vector <element_s> t;
@@ -170,21 +136,20 @@ void ABE2OD::Enc(Ciphertext &cipher, string M, LSSS &lsss, pairing_t _pairing)
     {
         element_s tmp;
         element_init_Zr(&tmp, _pairing);
-//        element_random(&tmp);
-        element_set_si(&tmp, (i + 1) * 3);
+        element_random(&tmp);
         t.push_back(tmp);
     }
 
-    for (int i = 0; i < lsss_col; i++)
-    {
-        element_printf("v[%d] = %B ", i + 1, &v[i]);
-    }
-    cout << '\n';
-    for (int i = 0; i < lsss_row; i++)
-    {
-        element_printf("t[%d] = %B ", i + 1, &t[i]);
-    }
-    cout << '\n';
+//    for (int i = 0; i < lsss_col; i++)
+//    {
+//        element_printf("v[%d] = %B ", i + 1, &v[i]);
+//    }
+//    cout << '\n';
+//    for (int i = 0; i < lsss_row; i++)
+//    {
+//        element_printf("t[%d] = %B ", i + 1, &t[i]);
+//    }
+//    cout << '\n';
 
     // access policy layer
     lsss.generateShares(cipher.lambda, v, _pairing);
@@ -256,10 +221,10 @@ void ABE2OD::PDec(PTC &ptc, KeyTuple::TK &tk, Ciphertext &cipher, pairing_t _pai
     vector <element_s> w;
     cipher.policy->findVector(w, tk.attributes, _pairing);
 
-    for (int i = 0; i < w.size(); i++)
-    {
-        element_printf("omega = %B\n", &w[i]);
-    }
+//    for (int i = 0; i < w.size(); i++)
+//    {
+//        element_printf("omega = %B\n", &w[i]);
+//    }
 
 
     for (int i = 0; i < w.size(); i++)
@@ -314,23 +279,23 @@ void ABE2OD::PDec(PTC &ptc, KeyTuple::TK &tk, Ciphertext &cipher, pairing_t _pai
 
 }
 
-string ABE2OD::TDec(KeyTuple::SK &sk, PTC &ptc, pairing_t _pairing)
+void ABE2OD::TDec(element_t M1, KeyTuple::SK &sk, PTC &ptc, pairing_t _pairing)
 {
 
     element_t msg, denominator;
     element_init_GT(msg, _pairing);
     element_init_GT(denominator, _pairing);
-    element_pow_zn(denominator, ptc.ptc_1, sk.beta);
-    element_printf("e_g_g_alphas_beta = %B\n", denominator);
+    element_pow_zn(denominator, ptc.ptc_0, sk.beta);
 
-    element_set(msg, ptc.ptc_0);
+    element_set(msg, ptc.ptc_1);
     element_div(msg, msg, denominator);
-    element_printf("dec msg = %B\n", msg);
+//    element_printf("dec msg = %B\n", msg);
 
-    string dec_M = elementToHash(msg);
+
+    element_set(M1, msg);
+
     element_clear(msg);
     element_clear(denominator);
-    return dec_M;
 }
 
 ABE2OD::ABE2OD()

@@ -50,7 +50,7 @@ string generateString(int length)
 
 int main(int argc, char *argv[])
 {
-    int epoch = 1;
+    int epoch = 10;
     double start_time, end_time;
     double average_time_Setup = 0, average_time_Enc = 0, average_time_Keygen = 0, average_time_PDec = 0, average_time_TDec = 0;
 
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 //        pairing_init_pbc_param(pairing, param);
 
         pbc_param_t param;
-        pbc_param_init_a_gen(param, 20, 64);
+        pbc_param_init_a_gen(param, 160, 512);
         pairing_t pairing;
         pairing_init_pbc_param(pairing, param);
 
@@ -113,7 +113,12 @@ int main(int argc, char *argv[])
 
 
         // KeyGen
-        string attribute_str = "(A,B,C,D,F)";
+//        string attribute_str = "(A,B,C,D,F)";
+        string attribute_str = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,10)";
+//        string attribute_str = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,20)";
+//        string attribute_str = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30,30)";
+//        string attribute_str = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,A40,40)";
+//        string attribute_str = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,A40,A41,A42,A43,A44,A45,A46,A47,A48,A49,A50,50)";
         cout << "attribute_str = " << attribute_str << '\n';
         KeyTuple keytuple;
 
@@ -128,25 +133,28 @@ int main(int argc, char *argv[])
 
         // Enc
         // 生成LSSS矩阵
-        string access_policy = "((A,B,2),(C,D,E,3),(F,(G,H,2),1),2)";
+//        string access_policy = "((A,B,2),(C,D,E,3),(F,(G,H,2),1),2)";
+        string access_policy = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10)";
+//        string access_policy = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20)";
+//        string access_policy = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30)";
+//        string access_policy = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,A40)";
+//        string access_policy = "(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26,A27,A28,A29,A30,A31,A32,A33,A34,A35,A36,A37,A38,A39,A40,A41,A42,A43,A44,A45,A46,A47,A48,A49,A50)";
         cout << "access_policy = " << access_policy << '\n';
         LSSS lsss(access_policy);
 
         // 生成消息M
-        // string message="aptx4869";
-        const size_t desiredBitLength = 256; // 所需的位数
-//        string message = generateBinaryHash(desiredBitLength); // 随机生成消息
-        string message = "1011101001010101001011000011100010110111000010101010100001101010100101011111001011111110000000110011001011000000100001000110110011111110000010110101110000101001011001001110010010100011100100010010110111100100011000011001100111110001011000101000010101100001";
-        cout << "message = " << message << '\n';
-
+        element_t M;
+        element_init_GT(M, pairing);
+        element_random(M);
+        element_printf("M = %B\n", M);
 
         Ciphertext cipher;
         start_time = omp_get_wtime();
-        abe2od.Enc(cipher, message, lsss, pairing);
+        abe2od.Enc(cipher, M, lsss, pairing);
         end_time = omp_get_wtime();
         average_time_Enc += (end_time - start_time) * 1000;
 
-//        abe2od.showcipher(cipher);
+        abe2od.showcipher(cipher);
         printf("-------------------------------------------------------------------------\n");
 
 
@@ -163,19 +171,21 @@ int main(int argc, char *argv[])
 
 
         // Decrypt
-        string M1;
+        element_t M1;
+        element_init_GT(M1, pairing);
+
         start_time = omp_get_wtime();
-        M1 = abe2od.TDec(keytuple.sk, ptc, pairing);
+        abe2od.TDec(M1, keytuple.sk, ptc, pairing);
         end_time = omp_get_wtime();
         average_time_TDec += (end_time - start_time) * 1000;
 
-        cout << "M1 = " << M1 << '\n';
+        element_printf("M1 = %B\n", M1);
 
         // 判断M和M1是否一致
-        if (M1 != message)
+        if (element_cmp(M, M1) != 0)
         {
-            cout << "Before encryption: M = " << message << '\n';
-            cout << "After encryption: M1 = " << M1 << '\n';
+            element_printf("Before encryption: M = %B\n", M);
+            element_printf("After encryption: M1 = %B\n", M1);
             cout << "错误：M与M1不一致" << '\n';
             return -1;  // 返回非零值表示出错
         }
@@ -183,11 +193,11 @@ int main(int argc, char *argv[])
         printf("-------------------------------------------------------------------------\n");
     }
 
-    printf("[KGC，步骤一] %d次 Setup平均耗时 %.10f ms\n", epoch, average_time_Setup / epoch);
-    printf("[KGC，步骤二] %d次 Keygen平均耗时 %.10f ms\n", epoch, average_time_Keygen / epoch);
-    printf("[投标人，步骤三] %d次 Enc平均耗时 %.10f ms\n", epoch, average_time_Enc / epoch);
-    printf("[区块链，步骤四] %d次 PDec平均耗时 %.10f ms\n", epoch, average_time_PDec / epoch);
-    printf("[招标人，步骤五] %d次 TDec平均耗时 %.10f ms\n", epoch, average_time_TDec / epoch);
+    printf("[KGC，步骤一] %d次 Setup平均耗时 %.6f ms\n", epoch, average_time_Setup / epoch);
+    printf("[KGC，步骤二] %d次 Keygen平均耗时 %.6f ms\n", epoch, average_time_Keygen / epoch);
+    printf("[投标人，步骤三] %d次 Enc平均耗时 %.6f ms\n", epoch, average_time_Enc / epoch);
+    printf("[区块链，步骤四] %d次 PDec平均耗时 %.6f ms\n", epoch, average_time_PDec / epoch);
+    printf("[招标人，步骤五] %d次 TDec平均耗时 %.6f ms\n", epoch, average_time_TDec / epoch);
 
     printf("Info: exp successfully returned.\n");
     return 0;
