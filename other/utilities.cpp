@@ -1,6 +1,4 @@
-//
-// Created by Xiaoguo on 2022/7/17.
-//
+
 
 #include "../include/ABE/utilities.h"
 #include <vector>

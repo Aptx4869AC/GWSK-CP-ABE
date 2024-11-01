@@ -1,6 +1,4 @@
-//
-// Created by Xiaoguo on 2022/7/12.
-//
+
 #include "../include/ABE/LSSS.h"
 #include "../include/ABE/utilities.h"
 #include <cassert>
@@ -534,10 +532,17 @@ void LSSS::getValidShares(vector<element_s> &valid_Shares, vector<element_s> &sh
     }
 }
 
-void LSSS::getValidSharesExt(vector<element_s> &valid_Shares, vector<element_s> &valid_Ci, vector<element_s> &valid_Di, vector<element_s> &valid_kx,
-                       vector<element_s> &shares, vector<element_s> &Ci, vector<element_s> &Di, unordered_map<string, element_s> &kx,
+void LSSS::getValidSharesExt(vector<element_s> &valid_Shares, vector<element_s> &valid_ct_0, vector<element_s> &valid_ct_1, vector<element_s> &valid_tk_2,
+                       vector<element_s> &shares, vector<element_s> &ct_0, vector<element_s> &ct_1, unordered_map<string, element_s> &tk_2,
                        string attributes, pairing_t pairing)
 {
+
+    /*
+     *     cipher.policy->getValidSharesExt(lambda, ct_0, ct_1, tk_2,
+                                     cipher.lambda, cipher.ct_0, cipher.ct_1, tk.tk_2,
+                                     tk.attributes, _pairing);
+     */
+
     // parse the string
     vector<string> attributes_set;
     string2attribute_Set(attributes_set, attributes);
@@ -545,25 +550,24 @@ void LSSS::getValidSharesExt(vector<element_s> &valid_Shares, vector<element_s> 
     // fetch the rows
     vector<int> I;
     Fetchrows(I, attributes_set, rho);
-    //cout << "I size:" << I.size() << endl;
     if(I.size() == 0) return;
 
     for (int i=0; i < I.size(); ++i) {
         element_s tmp,c,d, k;
         element_init_Zr(&tmp, pairing);
         element_init_G1(&c, pairing);
-        element_init_G1(&d, pairing);
-        element_init_G1(&k, pairing);
+        element_init_G2(&d, pairing);
+        element_init_G2(&k, pairing);
 
         element_set(&tmp, &shares[I[i]]);
-        element_set(&c, &Ci[I[i]]);
-        element_set(&d, &Di[I[i]]);
-        element_set(&k, &kx.at(rho.at(I[i])));
+        element_set(&c, &ct_0[I[i]]);
+        element_set(&d, &ct_1[I[i]]);
+        element_set(&k, &tk_2.at(rho.at(I[i])));
 
         valid_Shares.push_back(tmp);
-        valid_Ci.push_back(c);
-        valid_Di.push_back(d);
-        valid_kx.push_back(k);
+        valid_ct_0.push_back(c);
+        valid_ct_1.push_back(d);
+        valid_tk_2.push_back(k);
     }
 }
 

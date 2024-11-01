@@ -20,59 +20,43 @@ namespace ABE2ODSPACE
 	
 
     struct PK {
-        element_t g;
+        element_t g_1;
+        element_t g_2;
         element_t eggalpha;
-        element_t ga;
     };
 
     struct MSK {
-        element_t galpha;
+        element_t alpha;
     };
     
     struct Ciphertext {
         LSSS *policy;
-        element_t C0;
-        string C1;//hash
-        element_t C2;
-        vector<element_s> Di;
-        vector<element_s> Ei;
+        vector<element_s> ct_0;
+        vector<element_s> ct_1;
+        element_t ct_2;
+        element_t ct_3;
         vector<element_s> lambda;
     };
     
     struct KeyTuple {
         struct TK {
             string attributes;
-            element_t K;
-            element_t L;
-            unordered_map<string, element_s> Ky; 
+            element_t tk_0;
+            element_t tk_1;
+            unordered_map<string, element_s> tk_2;
         };
-        struct HK {
-            element_t gamma_1;
-            element_t gamma_2;
-        };
-        struct DK {
+        struct SK {
             element_t beta;
         };
 
-        TK tk_1;
-        TK tk_2;
-        HK hk;
-        DK dk;
+        TK tk;
+        SK sk;
     };
     
     struct PTC {
-        element_t C0;
-        string C1;
-        element_t CP1;
-        element_t CP2;
+        element_t ptc_0;
+        element_t ptc_1;
     };
-    
-    struct TC {
-        element_t T0;
-        string T1;
-        element_t T2;
-    };
-    
 
 
     class ABE2OD {
@@ -90,9 +74,8 @@ namespace ABE2ODSPACE
         void Setup(pairing_t _pairing);
         void Enc(Ciphertext &cipher, string M, LSSS &lsss, pairing_t _pairing);
         void KeyGen(KeyTuple &keytuple, const string _attributes, pairing_t _pairing);
-        void Transform1(PTC &ptc, KeyTuple::TK &tk_1, KeyTuple::TK &tk_2, Ciphertext &cipher, pairing_t _pairing);
-        void Transform2(TC &tc, KeyTuple::HK &hk, PTC &ptc, pairing_t _pairing);
-        string Dec(KeyTuple::DK &dk, TC &tc, pairing_t _pairing);
+        void PDec(PTC &ptc, KeyTuple::TK &tk, Ciphertext &cipher, pairing_t _pairing);
+        string TDec(KeyTuple::SK &sk, PTC &ptc, pairing_t _pairing);
 
         /*
          * DEBUG functions
@@ -101,7 +84,6 @@ namespace ABE2ODSPACE
         void showkeytuple(KeyTuple &ktuple);
         void showcipher(Ciphertext &cipher);
         void showPTC(PTC &ptc);
-        void showTC(TC &tc);
 
     };
 

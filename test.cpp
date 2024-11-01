@@ -50,19 +50,10 @@ string generateString(int length)
 
 int main(int argc, char *argv[])
 {
-    int cpu_number = 1;
-    omp_set_num_threads(cpu_number);
-
     int epoch = 1;
-    double start_time_setup, end_time_setup;
-    double start_time_enc, end_time_enc;
-    double start_time_keygen, end_time_keygen;
-    double start_time_t1, end_time_t1;
-    double start_time_t2, end_time_t2;
-    double start_time_dec, end_time_dec;
+    double start_time, end_time;
+    double average_time_Setup = 0, average_time_Enc = 0, average_time_Keygen = 0, average_time_PDec = 0, average_time_TDec = 0;
 
-    double elapsed_time_setup = 0, elapsed_time_enc = 0, elapsed_time_keygen = 0, elapsed_time_dec = 0;
-    double elapsed_time_t1 = 0, elapsed_time_t2 = 0;
     for (int i = 0; i < epoch; i++)
     {
 
@@ -106,16 +97,32 @@ int main(int argc, char *argv[])
 //        pairing_init_pbc_param(pairing, param);
 
         pbc_param_t param;
-        pbc_param_init_a_gen(param, 160, 512);
+        pbc_param_init_a_gen(param, 20, 64);
         pairing_t pairing;
         pairing_init_pbc_param(pairing, param);
 
         // Setup 初始化
         ABE2OD abe2od;
-        start_time_setup = omp_get_wtime();
+        start_time = omp_get_wtime();
         abe2od.Setup(pairing);
-        end_time_setup = omp_get_wtime();
+        end_time = omp_get_wtime();
+        average_time_Setup += (end_time - start_time) * 1000;
+
         abe2od.showkeys();
+        printf("-------------------------------------------------------------------------\n");
+
+
+        // KeyGen
+        string attribute_str = "(A,B,C,D,F)";
+        cout << "attribute_str = " << attribute_str << '\n';
+        KeyTuple keytuple;
+
+        start_time = omp_get_wtime();
+        abe2od.KeyGen(keytuple, attribute_str, pairing);
+        end_time = omp_get_wtime();
+        average_time_Keygen += (end_time - start_time) * 1000;
+
+        abe2od.showkeytuple(keytuple);
         printf("-------------------------------------------------------------------------\n");
 
 
@@ -134,45 +141,34 @@ int main(int argc, char *argv[])
 
 
         Ciphertext cipher;
-        start_time_enc = omp_get_wtime();
+        start_time = omp_get_wtime();
         abe2od.Enc(cipher, message, lsss, pairing);
-        end_time_enc = omp_get_wtime();
-        abe2od.showcipher(cipher);
+        end_time = omp_get_wtime();
+        average_time_Enc += (end_time - start_time) * 1000;
+
+//        abe2od.showcipher(cipher);
         printf("-------------------------------------------------------------------------\n");
 
-        // KeyGen
-        string attribute_str = "(A,B,C,D,F)";
-        cout << "attribute_str = " << attribute_str << '\n';
-        KeyTuple keytuple;
 
-        start_time_keygen = omp_get_wtime();
-        abe2od.KeyGen(keytuple, attribute_str, pairing);
-        end_time_keygen = omp_get_wtime();
-        abe2od.showkeytuple(keytuple);
-        printf("-------------------------------------------------------------------------\n");
 
         //Transform1
         PTC ptc;
-        TC tc;
-        start_time_t1 = omp_get_wtime();
-        abe2od.Transform1(ptc, keytuple.tk_1, keytuple.tk_2, cipher, pairing);
-        end_time_t1 = omp_get_wtime();
+        start_time = omp_get_wtime();
+        abe2od.PDec(ptc, keytuple.tk, cipher, pairing);
+        end_time = omp_get_wtime();
+        average_time_PDec += (end_time - start_time) * 1000;
+
         abe2od.showPTC(ptc);
         printf("-------------------------------------------------------------------------\n");
 
 
-        // Transform2
-        start_time_t2 = omp_get_wtime();
-        abe2od.Transform2(tc, keytuple.hk, ptc, pairing);
-        end_time_t2 = omp_get_wtime();
-        abe2od.showTC(tc);
-        printf("-------------------------------------------------------------------------\n");
-
         // Decrypt
         string M1;
-        start_time_dec = omp_get_wtime();
-        M1 = abe2od.Dec(keytuple.dk, tc, pairing);
-        end_time_dec = omp_get_wtime();
+        start_time = omp_get_wtime();
+        M1 = abe2od.TDec(keytuple.sk, ptc, pairing);
+        end_time = omp_get_wtime();
+        average_time_TDec += (end_time - start_time) * 1000;
+
         cout << "M1 = " << M1 << '\n';
 
         // 判断M和M1是否一致
@@ -184,20 +180,14 @@ int main(int argc, char *argv[])
             return -1;  // 返回非零值表示出错
         }
 
-        elapsed_time_setup += (end_time_setup - start_time_setup) * 1000;
-        elapsed_time_enc += (end_time_enc - start_time_enc) * 1000;
-        elapsed_time_keygen += (end_time_keygen - start_time_keygen) * 1000;
-        elapsed_time_t1 += (end_time_t1 - start_time_t1) * 1000;
-        elapsed_time_t2 += (end_time_t2 - start_time_t2) * 1000;
-        elapsed_time_dec += (end_time_dec - start_time_dec) * 1000;
-//        printf("-------------------------------------------------------------------------\n");
+        printf("-------------------------------------------------------------------------\n");
     }
 
-    printf("[KGC，步骤一] %d次 Setup平均耗时 %.10f ms\n", epoch, elapsed_time_setup / epoch);
-    printf("[KGC，步骤二] %d次 Keygen平均耗时 %.10f ms\n", epoch, elapsed_time_keygen / epoch);
-    printf("[投标人，步骤三] %d次 Enc平均耗时 %.10f ms\n", epoch, elapsed_time_enc / epoch);
-    printf("[区块链，步骤四] %d次 PDec平均耗时 %.10f ms\n", epoch, elapsed_time_t1 / epoch);
-    printf("[招标人，步骤五] %d次 TDec平均耗时 %.10f ms\n", epoch, elapsed_time_dec / epoch);
+    printf("[KGC，步骤一] %d次 Setup平均耗时 %.10f ms\n", epoch, average_time_Setup / epoch);
+    printf("[KGC，步骤二] %d次 Keygen平均耗时 %.10f ms\n", epoch, average_time_Keygen / epoch);
+    printf("[投标人，步骤三] %d次 Enc平均耗时 %.10f ms\n", epoch, average_time_Enc / epoch);
+    printf("[区块链，步骤四] %d次 PDec平均耗时 %.10f ms\n", epoch, average_time_PDec / epoch);
+    printf("[招标人，步骤五] %d次 TDec平均耗时 %.10f ms\n", epoch, average_time_TDec / epoch);
 
     printf("Info: exp successfully returned.\n");
     return 0;

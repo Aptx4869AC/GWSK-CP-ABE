@@ -1,6 +1,4 @@
-//
-// Created by Xiaoguo on 2022/7/17.
-//
+
 
 #ifndef SECRETSHARING_UTILITIES_H
 #define SECRETSHARING_UTILITIES_H
