@@ -1,3 +1,3 @@
 #!/bin/bash
-g++ -o test test.cpp other/ABE2OD.cpp other/LSSS.cpp other/utilities.cpp -lpbc -lgmp -fopenmp -lcrypto
-./test
+g++ -o cp-abe cp-abe.cpp other/ABE2OD.cpp other/LSSS.cpp other/utilities.cpp -lpbc -lgmp -fopenmp -lcrypto
+g++ -o merkle_tree merkle_tree.cpp -fopenmp -lcrypto -lssl
