@@ -318,12 +318,12 @@ int main()
     const int coreNum = omp_get_num_procs(); // 获得处理器个数
     cout << "Max core number is: " << coreNum << '\n';
 
-    vector<int> test_threads = {1, 6, 12, 18, 24}; // 目标测试线程数
+    vector<int> test_threads = {1, 6, 12, 24}; // 目标测试线程数
 
 
     for (int threads: test_threads)
     {
-        cout << "\n[Benchmark] 线程数: " << threads << endl;
+        cout << "\n[Benchmark] 线程数: " << threads << '\n';
         omp_set_num_threads(threads);
 
         // 计时变量（使用最大线程耗时统计）
@@ -371,7 +371,7 @@ int main()
                 } catch (...)
                 {
 #pragma omp critical
-                    cerr << "异常发生在线程 " << omp_get_thread_num() << endl;
+                    cerr << "异常发生在线程 " << omp_get_thread_num() << '\n';
                     error_count++;
                 }
             }
@@ -390,7 +390,7 @@ int main()
         cout << "├─ 签名耗时:     " << max_sign_time * 1000 << " ms (" << (max_sign_time / total_time) * 100 << "%)\n";
         cout << "├─ 验证耗时:     " << max_verify_time * 1000 << " ms (" << (max_verify_time / total_time) * 100 << "%)\n";
         cout << "├─ 系统吞吐量:   " << throughput << " ops/sec\n";
-        cout << "└─ 错误次数:     " << error_count << endl;
+        cout << "└─ 错误次数:     " << error_count << '\n';
         cout << "─────────────────────────────────────────\n";
     }
     // 清理配对参数
